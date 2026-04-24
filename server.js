@@ -17,6 +17,19 @@ app.get('/', (req, res) => {
   res.send('Gemini Phone Bot is running');
 });
 
+// Test Gemini API key
+app.get('/test-gemini', async (req, res) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Say hello in one sentence.'
+    });
+    res.send('Gemini connected: ' + response.text);
+  } catch (error) {
+    res.status(500).send('Gemini error: ' + error.message);
+  }
+});
+
 // TwiML webhook - Twilio calls this when a call comes in
 app.post('/twiml', (req, res) => {
   res.type('text/xml');
@@ -43,7 +56,7 @@ wss.on('connection', async (twilioWs) => {
   // Start Gemini Live session
   try {
     geminiSession = await ai.live.connect({
-      model: 'gemini-2.5-flash-preview-native-audio-dialog',
+      model: 'gemini-2.5-flash-native-audio-latest',
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -63,7 +76,6 @@ wss.on('connection', async (twilioWs) => {
         },
         onmessage: async (message) => {
           try {
-            // Check if message has audio data
             if (
               message.serverContent &&
               message.serverContent.modelTurn &&
@@ -71,16 +83,9 @@ wss.on('connection', async (twilioWs) => {
             ) {
               for (const part of message.serverContent.modelTurn.parts) {
                 if (part.inlineData && part.inlineData.data) {
-                  // Decode base64 audio from Gemini
                   const pcm16Buffer = Buffer.from(part.inlineData.data, 'base64');
-
-                  // Downsample from 16kHz to 8kHz
                   const downsampled = downsample16kTo8k(pcm16Buffer);
-
-                  // Convert PCM16 to mulaw for Twilio
                   const mulawBuffer = pcm16ToMulaw(downsampled);
-
-                  // Encode as base64 and send to Twilio
                   const payload = mulawBuffer.toString('base64');
 
                   if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
@@ -130,16 +135,10 @@ wss.on('connection', async (twilioWs) => {
       case 'media':
         try {
           if (geminiSession) {
-            // Decode base64 audio from Twilio
             const mulawBuffer = Buffer.from(data.media.payload, 'base64');
-
-            // Convert mulaw to PCM16
             const pcm16Buffer = mulawToPCM16(mulawBuffer);
-
-            // Upsample from 8kHz to 16kHz
             const upsampled = upsample8kTo16k(pcm16Buffer);
 
-            // Send to Gemini as base64
             geminiSession.sendRealtimeInput({
               audio: {
                 data: upsampled.toString('base64'),
