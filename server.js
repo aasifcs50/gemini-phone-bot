@@ -145,7 +145,7 @@ wss.on('connection', async (twilioWs) => {
                   const mulawBuffer = pcm16ToTwilio(pcm16Buffer);
                   const payload = mulawBuffer.toString('base64');
 
-                  console.log('Sending audio to Twilio, bytes:', mulawBuffer.length);
+                  console.log('Sending audio to Twilio, bytes:', mulawBuffer.length, 'streamSid:', streamSid);
 
                   if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
                     twilioWs.send(JSON.stringify({
