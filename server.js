@@ -77,33 +77,36 @@ wss.on('connection', async (twilioWs) => {
           console.log('Gemini Live session opened');
         },
         onmessage: async (message) => {
-          try {
-            if (
-              message.serverContent &&
-              message.serverContent.modelTurn &&
-              message.serverContent.modelTurn.parts
-            ) {
-              for (const part of message.serverContent.modelTurn.parts) {
-                if (part.inlineData && part.inlineData.data) {
-                  const pcm16Buffer = Buffer.from(part.inlineData.data, 'base64');
-                  const downsampled = downsample16kTo8k(pcm16Buffer);
-                  const mulawBuffer = pcm16ToMulaw(downsampled);
-                  const payload = mulawBuffer.toString('base64');
+  console.log('Gemini message received:', JSON.stringify(message).slice(0, 200));
+  try {
+    if (
+      message.serverContent &&
+      message.serverContent.modelTurn &&
+      message.serverContent.modelTurn.parts
+    ) {
+      for (const part of message.serverContent.modelTurn.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          const pcm16Buffer = Buffer.from(part.inlineData.data, 'base64');
+          const downsampled = downsample16kTo8k(pcm16Buffer);
+          const mulawBuffer = pcm16ToMulaw(downsampled);
+          const payload = mulawBuffer.toString('base64');
 
-                  if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
-                    twilioWs.send(JSON.stringify({
-                      event: 'media',
-                      streamSid: streamSid,
-                      media: { payload }
-                    }));
-                  }
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Error processing Gemini audio:', err);
+          console.log('Sending audio back to Twilio, bytes:', mulawBuffer.length);
+
+          if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
+            twilioWs.send(JSON.stringify({
+              event: 'media',
+              streamSid: streamSid,
+              media: { payload }
+            }));
           }
-        },
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error processing Gemini audio:', err);
+  }
+},
         onerror: (error) => {
           console.error('Gemini Live error:', error);
         },
@@ -135,23 +138,25 @@ wss.on('connection', async (twilioWs) => {
         break;
 
       case 'media':
-        try {
-          if (geminiSession) {
-            const mulawBuffer = Buffer.from(data.media.payload, 'base64');
-            const pcm16Buffer = mulawToPCM16(mulawBuffer);
-            const upsampled = upsample8kTo16k(pcm16Buffer);
+  try {
+    if (geminiSession) {
+      const mulawBuffer = Buffer.from(data.media.payload, 'base64');
+      const pcm16Buffer = mulawToPCM16(mulawBuffer);
+      const upsampled = upsample8kTo16k(pcm16Buffer);
 
-            geminiSession.sendRealtimeInput({
-              audio: {
-                data: upsampled.toString('base64'),
-                mimeType: 'audio/pcm;rate=16000'
-              }
-            });
-          }
-        } catch (err) {
-          console.error('Error sending audio to Gemini:', err);
+      console.log('Sending audio to Gemini, bytes:', upsampled.length);
+
+      geminiSession.sendRealtimeInput({
+        audio: {
+          data: upsampled.toString('base64'),
+          mimeType: 'audio/pcm;rate=16000'
         }
-        break;
+      });
+    }
+  } catch (err) {
+    console.error('Error sending audio to Gemini:', err);
+  }
+  break;
 
       case 'stop':
         console.log('Twilio stream stopped');
