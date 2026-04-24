@@ -74,8 +74,19 @@ wss.on('connection', async (twilioWs) => {
       },
       callbacks: {
         onopen: () => {
-          console.log('Gemini Live session opened');
-        },
+  console.log('Gemini Live session opened');
+  // Send a text prompt to trigger Gemini to speak first
+  setTimeout(() => {
+    geminiSession.sendClientContent({
+      turns: [{
+        role: 'user',
+        parts: [{ text: 'Please greet the caller and ask how you can help them today.' }]
+      }],
+      turnComplete: true
+    });
+    console.log('Sent greeting prompt to Gemini');
+  }, 1000);
+},
         onmessage: async (message) => {
   console.log('Gemini message received:', JSON.stringify(message).slice(0, 200));
   try {
