@@ -61,14 +61,21 @@ function downsample16kTo8k(buffer) {
 }
 // Resample PCM16 from 24kHz to 8kHz (downsample Gemini output for Twilio)
 function downsample24kTo8k(buffer) {
-  const output = Buffer.alloc(Math.floor(buffer.length / 6));
-  for (let i = 0; i < output.length / 2; i++) {
-    const sample = buffer.readInt16LE(i * 6);
-    output.writeInt16LE(sample, i * 2);
+  const inputSamples = buffer.length / 2;
+  const outputSamples = Math.floor(inputSamples / 3);
+  const output = Buffer.alloc(outputSamples * 2);
+
+  for (let i = 0; i < outputSamples; i++) {
+    // Average every 3 samples together instead of just picking one
+    const s1 = buffer.readInt16LE(i * 6);
+    const s2 = buffer.readInt16LE(i * 6 + 2);
+    const s3 = buffer.readInt16LE(i * 6 + 4);
+    const avg = Math.round((s1 + s2 + s3) / 3);
+    output.writeInt16LE(avg, i * 2);
   }
+
   return output;
 }
-
 module.exports = {
   mulawToPCM16,
   pcm16ToMulaw,
