@@ -5,7 +5,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { GoogleGenAI } = require('@google/genai');
-const { mulawToPCM16, pcm16ToMulaw, upsample8kTo16k, downsample16kTo8k } = require('./audioUtils');
+const { mulawToPCM16, pcm16ToMulaw, upsample8kTo16k, downsample24kTo8k } = require('./audioUtils');
 
 const app = express();
 app.use(express.urlencoded({ extended: false }));
@@ -87,7 +87,7 @@ wss.on('connection', async (twilioWs) => {
       for (const part of message.serverContent.modelTurn.parts) {
         if (part.inlineData && part.inlineData.data) {
           const pcm16Buffer = Buffer.from(part.inlineData.data, 'base64');
-          const downsampled = downsample16kTo8k(pcm16Buffer);
+          const downsampled = downsample24kTo8k(pcm16Buffer);
           const mulawBuffer = pcm16ToMulaw(downsampled);
           const payload = mulawBuffer.toString('base64');
 
