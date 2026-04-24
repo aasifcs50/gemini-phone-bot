@@ -51,10 +51,9 @@ wss.on('connection', async (twilioWs) => {
   let audioQueue = [];
   let geminiReady = false;
 
-  // Helper: convert mulaw buffer to PCM16 at 16kHz
+  // Convert mulaw 8kHz (from Twilio) to PCM16 16kHz (for Gemini)
   function twilioToPCM16(mulawBuffer) {
     const samples = alawmulaw.mulaw.decode(mulawBuffer);
-    // Upsample 8kHz to 16kHz by duplicating each sample
     const upsampled = new Int16Array(samples.length * 2);
     for (let i = 0; i < samples.length; i++) {
       upsampled[i * 2] = samples[i];
@@ -63,9 +62,8 @@ wss.on('connection', async (twilioWs) => {
     return Buffer.from(upsampled.buffer);
   }
 
-  // Helper: convert PCM16 at 24kHz to mulaw at 8kHz
+  // Convert PCM16 24kHz (from Gemini) to mulaw 8kHz (for Twilio)
   function pcm16ToTwilio(pcm16Buffer) {
-    // Downsample 24kHz to 8kHz by averaging every 3 samples
     const inputSamples = pcm16Buffer.length / 2;
     const outputSamples = Math.floor(inputSamples / 3);
     const downsampled = new Int16Array(outputSamples);
@@ -106,7 +104,6 @@ wss.on('connection', async (twilioWs) => {
             console.log('Gemini setup complete, sending greeting');
             geminiReady = true;
 
-            // Send greeting
             try {
               geminiSession.sendClientContent({
                 turns: [{
@@ -117,7 +114,7 @@ wss.on('connection', async (twilioWs) => {
               });
               console.log('Greeting sent');
 
-              // Flush any queued audio
+              // Flush queued audio
               if (audioQueue.length > 0) {
                 console.log('Flushing', audioQueue.length, 'queued audio chunks');
                 audioQueue.forEach(chunk => {
@@ -135,7 +132,7 @@ wss.on('connection', async (twilioWs) => {
             }
           }
 
-          // Handle audio response
+          // Handle audio from Gemini
           if (
             message.serverContent &&
             message.serverContent.modelTurn &&
@@ -151,18 +148,12 @@ wss.on('connection', async (twilioWs) => {
                   console.log('Sending audio to Twilio, bytes:', mulawBuffer.length);
 
                   if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
-  twilioWs.send(JSON.stringify({
-    event: 'media',
-    streamSid: streamSid,
-    media: { payload }
-  }));
-  // Send mark event so Twilio plays the audio
-  twilioWs.send(JSON.stringify({
-    event: 'mark',
-    streamSid: streamSid,
-    mark: { name: 'audio_chunk' }
-  }));
-}
+                    twilioWs.send(JSON.stringify({
+                      event: 'media',
+                      streamSid: streamSid,
+                      media: { payload }
+                    }));
+                  }
                 } catch (err) {
                   console.error('Error converting Gemini audio:', err);
                 }
@@ -170,8 +161,16 @@ wss.on('connection', async (twilioWs) => {
             }
           }
 
+          // Send mark when generation is complete
           if (message.serverContent && message.serverContent.generationComplete) {
-            console.log('Gemini finished speaking');
+            console.log('Gemini finished speaking, sending mark');
+            if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
+              twilioWs.send(JSON.stringify({
+                event: 'mark',
+                streamSid: streamSid,
+                mark: { name: 'done' }
+              }));
+            }
           }
         },
         onerror: (error) => {
@@ -211,7 +210,6 @@ wss.on('connection', async (twilioWs) => {
           const audioData = pcm16Buffer.toString('base64');
 
           if (!geminiReady) {
-            // Queue audio until Gemini is ready
             audioQueue.push(audioData);
           } else {
             geminiSession.sendRealtimeInput({
