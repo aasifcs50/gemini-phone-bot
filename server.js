@@ -54,6 +54,7 @@ wss.on('connection', async (twilioWs) => {
 
   let geminiSession = null;
   let streamSid = null;
+  let geminiReady = false;
 
   // Start Gemini Live session
   try {
@@ -77,6 +78,7 @@ wss.on('connection', async (twilioWs) => {
   console.log('Gemini Live session opened');
   // Send a text prompt to trigger Gemini to speak first
   setTimeout(() => {
+  try {
     geminiSession.sendClientContent({
       turns: [{
         role: 'user',
@@ -85,7 +87,11 @@ wss.on('connection', async (twilioWs) => {
       turnComplete: true
     });
     console.log('Sent greeting prompt to Gemini');
-  }, 1000);
+    geminiReady = true;
+  } catch (err) {
+    console.error('Error sending greeting:', err);
+  }
+}, 1000);
 },
         onmessage: async (message) => {
   console.log('Gemini message received:', JSON.stringify(message).slice(0, 200));
@@ -150,7 +156,7 @@ wss.on('connection', async (twilioWs) => {
 
       case 'media':
   try {
-    if (geminiSession) {
+    if (geminiSession && geminiReady) {
       const mulawBuffer = Buffer.from(data.media.payload, 'base64');
       const pcm16Buffer = mulawToPCM16(mulawBuffer);
       const upsampled = upsample8kTo16k(pcm16Buffer);
