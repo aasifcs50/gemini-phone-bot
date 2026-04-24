@@ -190,9 +190,11 @@ wss.on('connection', async (twilioWs) => {
   }
 
   // Handle Twilio messages
-  twilioWs.on('message', (message) => {
+ twilioWs.on('message', (message) => {
     try {
-      const data = JSON.parse(message);
+      const raw = message.toString();
+      const data = JSON.parse(raw);
+      console.log('Twilio event:', data.event);
 
       switch (data.event) {
         case 'connected':
