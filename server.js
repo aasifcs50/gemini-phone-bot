@@ -41,7 +41,7 @@ app.post('/twiml', (req, res) => {
 });
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, path: '/twilio-stream' });
 
 wss.on('connection', async (twilioWs) => {
   console.log('Twilio connected');
