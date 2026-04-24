@@ -151,12 +151,18 @@ wss.on('connection', async (twilioWs) => {
                   console.log('Sending audio to Twilio, bytes:', mulawBuffer.length);
 
                   if (twilioWs.readyState === WebSocket.OPEN && streamSid) {
-                    twilioWs.send(JSON.stringify({
-                      event: 'media',
-                      streamSid: streamSid,
-                      media: { payload }
-                    }));
-                  }
+  twilioWs.send(JSON.stringify({
+    event: 'media',
+    streamSid: streamSid,
+    media: { payload }
+  }));
+  // Send mark event so Twilio plays the audio
+  twilioWs.send(JSON.stringify({
+    event: 'mark',
+    streamSid: streamSid,
+    mark: { name: 'audio_chunk' }
+  }));
+}
                 } catch (err) {
                   console.error('Error converting Gemini audio:', err);
                 }
