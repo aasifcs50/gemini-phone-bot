@@ -1,4 +1,6 @@
 require('dotenv').config();
+console.log('GEMINI_API_KEY set:', !!process.env.GEMINI_API_KEY);
+console.log('PORT:', process.env.PORT);
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
