@@ -208,7 +208,11 @@ wss.on('connection', async (twilioWs) => {
   break;
 
         case 'media':
-          const mulawBuffer = Buffer.from(data.media.payload, 'base64');
+  if (!streamSid && data.streamSid) {
+    streamSid = data.streamSid;
+    console.log('Got streamSid from media event:', streamSid);
+  }
+  const mulawBuffer = Buffer.from(data.media.payload, 'base64');
           const pcm16Buffer = twilioToPCM16(mulawBuffer);
           const audioData = pcm16Buffer.toString('base64');
 
