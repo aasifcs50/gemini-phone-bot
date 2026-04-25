@@ -202,9 +202,10 @@ wss.on('connection', async (twilioWs) => {
           break;
 
         case 'start':
-          streamSid = data.start.streamSid;
-          console.log('Stream started, SID:', streamSid);
-          break;
+  console.log('Start event data:', JSON.stringify(data));
+  streamSid = data.start.streamSid;
+  console.log('Stream started, SID:', streamSid);
+  break;
 
         case 'media':
           const mulawBuffer = Buffer.from(data.media.payload, 'base64');
